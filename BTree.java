@@ -48,9 +48,9 @@ public class BTree<T extends Identifiable> {
 	 * @return the positiovgfn in this tree of the first occurrence of s; -1 if
 	 *         s does not occur
 	 */
-	// public T fetch(int identifier) {
-	// return root.fetch(identifier);
-	// }
+	public T fetch(int identifier) {
+		return root.fetch(identifier);
+	}
 
 	// public int remove(int identifier) {
 	// Node<?> ret = root.remove(identifier);
@@ -98,7 +98,7 @@ public class BTree<T extends Identifiable> {
 		 * @param identifier
 		 * @return the data entry found, or null if no such data entry found
 		 */
-		// public T fetch(int identifier);
+		public abstract T fetch(int identifier);
 
 		/**
 		 * 
@@ -107,11 +107,11 @@ public class BTree<T extends Identifiable> {
 		 */
 		// public Node<T> remove(int identifier);
 
-//		public abstract boolean isEmpty();
+		// public abstract boolean isEmpty();
 
 		public abstract boolean notHalfFull();
 
-//		public abstract boolean isFull();
+		// public abstract boolean isFull();
 
 		public abstract int size();
 
@@ -120,13 +120,13 @@ public class BTree<T extends Identifiable> {
 		public int getIdentifier() {
 			return lowerID;
 		}
-		
+
 		public abstract String toStringHelper(String prefix, int index);
-		
-		public String toString(){
+
+		public String toString() {
 			return toStringHelper("", 0);
 		}
-		
+
 	}
 
 	private class IndexNode<T extends Identifiable> extends Node<T> {
@@ -185,6 +185,25 @@ public class BTree<T extends Identifiable> {
 			return null;
 		}
 
+		@Override
+		public T fetch(int identifier) {
+			if (identifier < this.lowerID) {
+				return null;
+			}
+			int low = 0;
+			int up = p.size();
+			Node<T> ret;
+			while (up - low > 1) {
+				int mid = (low + up) / 2;
+				if (p.get(mid).compareToIdentifier(identifier) <= 0) {
+					low = mid;
+				} else {
+					up = mid;
+				}
+			}
+			return p.get(low).fetch(identifier);
+		}
+
 		/**
 		 * When a node is already full but a page split occurs in its children
 		 * node, this node needs to be split into two nodes.
@@ -209,10 +228,10 @@ public class BTree<T extends Identifiable> {
 		// return null;
 		// }
 
-//		@Override
-//		public boolean isFull() {
-//			return p.size() == INDEX_NODE_BRANCH_FACTOR;
-//		}
+		// @Override
+		// public boolean isFull() {
+		// return p.size() == INDEX_NODE_BRANCH_FACTOR;
+		// }
 
 		@Override
 		public int height() {
@@ -223,26 +242,27 @@ public class BTree<T extends Identifiable> {
 		public int size() {
 			return p.size();
 		}
-		
-//		@Override
-//		public boolean isEmpty() {
-//			return p.size() == 0;
-//		}
+
+		// @Override
+		// public boolean isEmpty() {
+		// return p.size() == 0;
+		// }
 
 		@Override
 		public boolean notHalfFull() {
 			return p.size() * 2 < INDEX_NODE_BRANCH_FACTOR;
 		}
-		
-		public String toStringHelper(String prefix, int index){
+
+		public String toStringHelper(String prefix, int index) {
 			StringBuilder sb = new StringBuilder();
-			sb.append(prefix + "<INode("+prefix.length()+")["+index+"] least=" + this.lowerID +">\n");
-			for (int i = 0; i < p.size() ; i++){
+			sb.append(prefix + "<INode(" + prefix.length() + ")[" + index + "] least=" + this.lowerID + ">\n");
+			for (int i = 0; i < p.size(); i++) {
 				sb.append(p.get(i).toStringHelper(prefix + " ", i));
 			}
-			sb.append(prefix + "</INode("+prefix.length()+")>\n" );
+			sb.append(prefix + "</INode(" + prefix.length() + ")>\n");
 			return sb.toString();
 		}
+
 	}
 
 	private class DataNode<T extends Identifiable> extends Node<T> {
@@ -287,11 +307,34 @@ public class BTree<T extends Identifiable> {
 			return null;
 		}
 
+		
+		
 		// @Override
 		// public Node<T> remove(int identifier) {
 		// // TODO Auto-generated method stub
 		// return null;
 		// }
+
+		@Override
+		public T fetch(int identifier) {
+			if (identifier < this.lowerID) {
+				return null;
+			}
+			int low = 0;
+			int up = d.size();
+			Node<T> ret;
+			while (up >= low) {
+				int mid = (low + up) / 2;
+				if (d.get(mid).compareToIdentifier(identifier) == 0) {
+					return d.get(0);
+				}else if (d.get(mid).compareToIdentifier(identifier) < 0){
+					low = mid + 1;
+				} else {
+					up = mid - 1;
+				}
+			}
+			return null;
+		}
 
 		@Override
 		public int size() {
@@ -302,7 +345,7 @@ public class BTree<T extends Identifiable> {
 		public int height() {
 			return 0;
 		}
-		
+
 		@Override
 		public boolean notHalfFull() {
 			return false;
@@ -311,28 +354,11 @@ public class BTree<T extends Identifiable> {
 		@Override
 		public String toStringHelper(String prefix, int index) {
 			StringBuilder sb = new StringBuilder();
-			sb.append(prefix + "<DNode("+prefix.length()+")["+index+"]");
+			sb.append(prefix + "<DNode(" + prefix.length() + ")[" + index + "]");
 			sb.append(d.toString());
-			sb.append(" />\n" );
+			sb.append(" />\n");
 			return sb.toString();
 		}
-
-//		@Override
-//		public T fetch(int identifier) {
-//			int low = 0;
-//			int up = identity.size();
-//			while (up - low > 1) {
-//				int mid = (low + up) / 2;
-//				if (identifier < identity.get(mid)) {
-//					up = mid;
-//				} else {
-//					low = mid;
-//				}
-//			}
-//			if (identity.get(low) == identifier)
-//				return data.get(low);
-//			return null;
-//		}
 
 	}
 

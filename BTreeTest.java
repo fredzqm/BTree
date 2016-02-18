@@ -15,7 +15,17 @@ public class BTreeTest {
 	}
 
 	@Test
-	public void test() {
+	public void test1() {
+		BTree tree = new BTree<Int>();
+		for (int i = 0 ; i < 100; i++){
+			tree.add(new Int(i));
+		}
+		System.out.println(tree);
+		System.out.println(tree.fetch(3));
+	}
+	
+	@Test
+	public void test22() {
 		BTree tree = new BTree<Int>();
 		for (int i = 0 ; i < 100; i++){
 			tree.add(new Int((int)(Math.random()*100)));
