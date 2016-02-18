@@ -3,17 +3,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-public class BTree<T extends Sortable> {
-	public static final int DATA_NODE_CAPACITY = 20;
-	public static final int INDEX_NODE_BRANCH_FACTOR = 50;
+public class BTree<T extends Identifiable> {
+	public static final int DATA_NODE_CAPACITY = 5;
+	public static final int INDEX_NODE_BRANCH_FACTOR = 5;
 
 	private Node<T> root;
 
 	/**
-	 * Construct an empty tree
+	 * Construct an empty tree Empty BTree has a null root
 	 */
 	public BTree() {
-		root = new IndexNode<T>();
+		root = null;
 	}
 
 	/**
@@ -21,31 +21,8 @@ public class BTree<T extends Sortable> {
 	 */
 	@Override
 	public String toString() {
-		return root.toString();
+		return "Tree root: \n" + root.toStringHelper("");
 	}
-
-	// /**
-	// * This one asks for more info from each node. You can write it like the
-	// * arraylist-based toString() method from the BST assignment. However, the
-	// * output isn't just the elements, but the elements, ranks, and balance
-	// * codes. Former CSSE230 students recommended that this method, while
-	// making
-	// * it harder to pass tests initially, saves them time later since it
-	// catches
-	// * weird errors that occur when you don't update ranks and balance codes
-	// * correctly. For the tree with node b and children a and c, it should
-	// * return the string: [b1=, a0=, c0=] There are many more examples in the
-	// * unit tests.
-	// *
-	// * @return The string of elements, ranks, and balance codes, given in a
-	// * pre-order traversal of the tree.
-	// */
-	// public String toDebugString() {
-	// if (root == Node.NULL_NODE)
-	// return "[]";
-	// String s = "[" + root.toDebugString();
-	// return s.substring(0, s.length() - 2) + "]";
-	// }
 
 	/**
 	 * 
@@ -71,17 +48,17 @@ public class BTree<T extends Sortable> {
 	 * @return the positiovgfn in this tree of the first occurrence of s; -1 if
 	 *         s does not occur
 	 */
-	public T fetch(int identifier) {
-		return root.fetch(identifier);
-	}
+	// public T fetch(int identifier) {
+	// return root.fetch(identifier);
+	// }
 
-	public int remove(int identifier) {
-		Node<?> ret = root.remove(identifier);
-		if (ret == null) // no such element, remove fail
-			return 0;
-		root = ret;
-		return 1;
-	}
+	// public int remove(int identifier) {
+	// Node<?> ret = root.remove(identifier);
+	// if (ret == null) // no such element, remove fail
+	// return 0;
+	//// root = ret;
+	// return 1;
+	// }
 
 	/**
 	 * add an element to the end of this tree
@@ -89,28 +66,31 @@ public class BTree<T extends Sortable> {
 	 * @param c
 	 *            character to add to the end of this tree.
 	 */
-	public void add(int identifier, T data) {
-		Node<T> ret = root.add(identifier, data);
+	public void add(T data) {
+		if (root == null) {
+			Node<T> firstDataNode = new DataNode<T>(data);
+			root = new IndexNode<T>(firstDataNode);
+			return;
+		}
+		Node<T> ret = root.add(data);
 		if (ret != null) {
-			List<Node<T>> node = new ArrayList<>();
-			List<Integer> ids = new ArrayList<>();
-			node.add(root);
-			node.add(ret);
-			ids.add(ret.getFirstIdentify());
-			root = new IndexNode<T>(node, ids);
+			// this level is no longer enough, grow another level
+			IndexNode<T> newRoot = new IndexNode<T>(root);
+			newRoot.appendNode(ret);
+			root = newRoot;
 		}
 	}
 
-	private interface Node<T> {
+	private abstract class Node<T extends Identifiable> extends Identifiable {
+		protected int lowerID;
 
 		/**
 		 * 
-		 * @param identifier
 		 * @param data
 		 * @return the split page not if there is a page split, null if no split
 		 *         happened
 		 */
-		public Node<T> add(int identifier, T data);
+		public abstract Node<T> add(T data);
 
 		/**
 		 * fetch the data according to the identifier
@@ -118,65 +98,86 @@ public class BTree<T extends Sortable> {
 		 * @param identifier
 		 * @return the data entry found, or null if no such data entry found
 		 */
-		public T fetch(int identifier);
+		// public T fetch(int identifier);
 
 		/**
 		 * 
 		 * @param identifier
 		 * @return
 		 */
-		public Node<T> remove(int identifier);
+		// public Node<T> remove(int identifier);
 
-		public boolean isEmpty();
+//		public abstract boolean isEmpty();
 
-		public boolean notHalfFull();
+		public abstract boolean notHalfFull();
 
-		public boolean isFull();
+//		public abstract boolean isFull();
 
-		public int size();
+		public abstract int size();
 
-		public int height();
+		public abstract int height();
 
-		public Integer getFirstIdentify();
+		public int getIdentifier() {
+			return lowerID;
+		}
+		
+		public abstract String toStringHelper(String prefix);
+		
+		public String toString(){
+			return toStringHelper("");
+		}
+		
 	}
 
-	private class IndexNode<T> implements Node<T> {
-		private ArrayList<Node<T>> pointers = new ArrayList<Node<T>>(INDEX_NODE_BRANCH_FACTOR);
-		private ArrayList<Integer> identity = new ArrayList<Integer>(INDEX_NODE_BRANCH_FACTOR - 1);
+	private class IndexNode<T extends Identifiable> extends Node<T> {
+		private ArrayList<Node<T>> p;
 
-		public IndexNode() {
-
+		/**
+		 * create an index node given the smallest node.
+		 * 
+		 * @param smallestElement
+		 */
+		public IndexNode(Node<T> smallestElement) {
+			p = new ArrayList<Node<T>>(INDEX_NODE_BRANCH_FACTOR);
+			p.add(smallestElement);
+			this.lowerID = smallestElement.lowerID;
 		}
 
-		public IndexNode(List<Node<T>> pointers, List<Integer> identity) {
-			for (Node<T> i : pointers)
-				this.pointers.add(i);
-			for (Integer i : identity)
-				this.identity.add(i);
+		public IndexNode(List<Node<T>> list) {
+			p.addAll(list);
+			this.lowerID = p.get(0).lowerID;
+		}
+
+		public void appendNode(Node<T> node) {
+			p.add(node);
 		}
 
 		@Override
-		public Node<T> add(int identifier, T data) {
+		public Node<T> add(T data) {
 			int low = 0;
-			int up = identity.size();
-			while (up - low > 1) {
-				int mid = (low + up) / 2;
-				if (identifier < identity.get(mid)) {
-					up = mid;
-				} else {
-					low = mid;
+			int up = p.size() - 1;
+			Node<T> ret;
+			if (data.compareToIdentifier(this.lowerID) < 0) {
+				this.lowerID = data.getIdentifier();
+				ret = p.get(0).add(data);
+			} else {
+				while (up - low > 1) {
+					int mid = (low + up) / 2;
+					if (p.get(mid).compareTo(data) < 0) {
+						low = mid;
+					} else {
+						up = mid;
+					}
 				}
+				ret = p.get(up).add(data);
 			}
-			Node<T> ret = pointers.get(up).add(identifier, data);
+			// after this loop p.get(low) should be the right node to add
 			if (ret != null) {
-				pointers.add(up + 1, ret);
-				identity.add(up, ret.getFirstIdentify());
+				p.add(up + 1, ret);
 				if (size() > INDEX_NODE_BRANCH_FACTOR) {
-					int div = (pointers.size() + 1) / 2;
-					Node<T> splited = new IndexNode<T>(pointers.subList(div, pointers.size()),
-							identity.subList(div, identity.size()));
-					pointers.subList(div, pointers.size()).clear();
-					identity.subList(div - 1, identity.size()).clear();
+					int div = (p.size() + 1) / 2;
+					Node<T> splited = new IndexNode<T>(p.subList(div, p.size()));
+					p.subList(div, p.size()).clear();
 					return splited;
 				}
 			}
@@ -201,16 +202,16 @@ public class BTree<T extends Sortable> {
 		//
 		// }
 
-		@Override
-		public Node<T> remove(int identifier) {
-			// TODO Auto-generated method stub
-			return null;
-		}
+		// @Override
+		// public Node<T> remove(int identifier) {
+		// // TODO Auto-generated method stub
+		// return null;
+		// }
 
-		@Override
-		public boolean isFull() {
-			return pointers.size() == INDEX_NODE_BRANCH_FACTOR;
-		}
+//		@Override
+//		public boolean isFull() {
+//			return p.size() == INDEX_NODE_BRANCH_FACTOR;
+//		}
 
 		@Override
 		public int size() {
@@ -219,132 +220,116 @@ public class BTree<T extends Sortable> {
 
 		@Override
 		public int height() {
-			return pointers.get(0).height() + 1;
+			return p.get(0).height() + 1;
 		}
 
-		@Override
-		public boolean isEmpty() {
-			return pointers.size() == 0;
-		}
+//		@Override
+//		public boolean isEmpty() {
+//			return p.size() == 0;
+//		}
 
 		@Override
 		public boolean notHalfFull() {
-			return pointers.size() * 2 < INDEX_NODE_BRANCH_FACTOR;
+			return p.size() * 2 < INDEX_NODE_BRANCH_FACTOR;
 		}
-
-		@Override
-		public T fetch(int identifier) {
-			int low = 0;
-			int up = identity.size();
-			while (up - low > 1) {
-				int mid = (low + up) / 2;
-				if (identifier < identity.get(mid)) {
-					up = mid;
-				} else {
-					low = mid;
-				}
+		
+		public String toStringHelper(String prefix){
+			StringBuilder sb = new StringBuilder();
+			sb.append(prefix + "<INode("+prefix.length()+") least=" + this.lowerID +">\n");
+			for (Node<T> n : p){
+				sb.append(n.toStringHelper(prefix + " "));
 			}
-			return pointers.get(up).fetch(identifier);
+			sb.append(prefix + "</INode("+prefix.length()+")>\n" );
+			return sb.toString();
 		}
-
-		@Override
-		public Integer getFirstIdentify() {
-			return pointers.get(0).getFirstIdentify();
-		}
-
 	}
 
-	private class DataNode<T> implements Node<T> {
-		private ArrayList<T> data = new ArrayList<>(DATA_NODE_CAPACITY);
-		private ArrayList<Integer> identity = new ArrayList<>(DATA_NODE_CAPACITY);
+	private class DataNode<T extends Identifiable> extends Node<T> {
+		private ArrayList<T> d;
 
-		public DataNode() {
+		public DataNode(T firstData) {
+			d = new ArrayList<>(DATA_NODE_CAPACITY);
+			d.add(firstData);
 		}
 
-		public DataNode(List<T> data, List<Integer> identity) {
-			for (T i : data)
-				this.data.add(i);
-			for (Integer i : identity)
-				this.identity.add(i);
+		public DataNode(List<T> data) {
+			d = new ArrayList<>(DATA_NODE_CAPACITY);
+			d.addAll(data);
 		}
 
 		@Override
-		public Node<T> add(int identifier, T newData) {
+		public Node<T> add(T data) {
 			int low = 0;
-			int up = identity.size();
-			while (up - low > 1) {
-				int mid = (low + up) / 2;
-				if (identifier < identity.get(mid)) {
-					up = mid;
-				} else {
-					low = mid;
+			int up = d.size();
+			if (data.compareToIdentifier(this.lowerID) < 0) {
+				this.lowerID = data.getIdentifier();
+				d.add(0, data);
+			} else {
+				while (up - low > 1) {
+					int mid = (low + up) / 2;
+					if (d.get(mid).compareTo(data) < 0) {
+						low = mid;
+					} else {
+						up = mid;
+					}
 				}
+				d.add(up, data);
 			}
-			data.add(up, newData);
-			identity.add(up, identifier);
 			if (size() > DATA_NODE_CAPACITY) {
-				int div = (data.size() + 1) / 2;
-				Node<T> splited = new DataNode<T>(data.subList(div, data.size()),
-						identity.subList(div, identity.size()));
-				data.subList(div, data.size()).clear();
-				identity.subList(div, identity.size()).clear();
+				int div = (d.size() + 1) / 2;
+				DataNode<T> splited = new DataNode<T>(d.subList(div, d.size()));
+				d.subList(div, d.size()).clear();
 				return splited;
 			}
 			return null;
 		}
 
-		@Override
-		public Node<T> remove(int identifier) {
-			// TODO Auto-generated method stub
-			return null;
-		}
-
-		@Override
-		public boolean isFull() {
-			return identity.size() == DATA_NODE_CAPACITY;
-		}
+		// @Override
+		// public Node<T> remove(int identifier) {
+		// // TODO Auto-generated method stub
+		// return null;
+		// }
 
 		@Override
 		public int size() {
-			return identity.size();
+			return d.size();
 		}
 
 		@Override
 		public int height() {
 			return 0;
 		}
-
-		@Override
-		public boolean isEmpty() {
-			return identity.size() == 0;
-		}
-
+		
 		@Override
 		public boolean notHalfFull() {
 			return false;
 		}
 
 		@Override
-		public T fetch(int identifier) {
-			int low = 0;
-			int up = identity.size();
-			while (up - low > 1) {
-				int mid = (low + up) / 2;
-				if (identifier < identity.get(mid)) {
-					up = mid;
-				} else {
-					low = mid;
-				}
-			}
-			if (identity.get(low) == identifier)
-				return data.get(low);
-			return null;
+		public String toStringHelper(String prefix) {
+			StringBuilder sb = new StringBuilder();
+			sb.append(prefix + "<DNode("+prefix.length()+") ");
+			sb.append(d.toString());
+			sb.append(" />\n" );
+			return sb.toString();
 		}
 
-		@Override
-		public Integer getFirstIdentify() {
-			return identity.get(0);
-		}
+//		@Override
+//		public T fetch(int identifier) {
+//			int low = 0;
+//			int up = identity.size();
+//			while (up - low > 1) {
+//				int mid = (low + up) / 2;
+//				if (identifier < identity.get(mid)) {
+//					up = mid;
+//				} else {
+//					low = mid;
+//				}
+//			}
+//			if (identity.get(low) == identifier)
+//				return data.get(low);
+//			return null;
+//		}
 
 	}
 
