@@ -21,7 +21,7 @@ public class BTree<T extends Identifiable> {
 	 */
 	@Override
 	public String toString() {
-		return "Tree root: \n" + root.toStringHelper("");
+		return "Tree root: \n" + root.toStringHelper("", 0);
 	}
 
 	/**
@@ -121,10 +121,10 @@ public class BTree<T extends Identifiable> {
 			return lowerID;
 		}
 		
-		public abstract String toStringHelper(String prefix);
+		public abstract String toStringHelper(String prefix, int index);
 		
 		public String toString(){
-			return toStringHelper("");
+			return toStringHelper("", 0);
 		}
 		
 	}
@@ -144,6 +144,7 @@ public class BTree<T extends Identifiable> {
 		}
 
 		public IndexNode(List<Node<T>> list) {
+			p = new ArrayList<Node<T>>(INDEX_NODE_BRANCH_FACTOR);
 			p.addAll(list);
 			this.lowerID = p.get(0).lowerID;
 		}
@@ -155,7 +156,7 @@ public class BTree<T extends Identifiable> {
 		@Override
 		public Node<T> add(T data) {
 			int low = 0;
-			int up = p.size() - 1;
+			int up = p.size();
 			Node<T> ret;
 			if (data.compareToIdentifier(this.lowerID) < 0) {
 				this.lowerID = data.getIdentifier();
@@ -163,17 +164,17 @@ public class BTree<T extends Identifiable> {
 			} else {
 				while (up - low > 1) {
 					int mid = (low + up) / 2;
-					if (p.get(mid).compareTo(data) < 0) {
+					if (p.get(mid).compareTo(data) <= 0) {
 						low = mid;
 					} else {
 						up = mid;
 					}
 				}
-				ret = p.get(up).add(data);
+				ret = p.get(low).add(data);
 			}
 			// after this loop p.get(low) should be the right node to add
 			if (ret != null) {
-				p.add(up + 1, ret);
+				p.add(low + 1, ret);
 				if (size() > INDEX_NODE_BRANCH_FACTOR) {
 					int div = (p.size() + 1) / 2;
 					Node<T> splited = new IndexNode<T>(p.subList(div, p.size()));
@@ -214,15 +215,15 @@ public class BTree<T extends Identifiable> {
 //		}
 
 		@Override
-		public int size() {
-			return 0;
-		}
-
-		@Override
 		public int height() {
 			return p.get(0).height() + 1;
 		}
 
+		@Override
+		public int size() {
+			return p.size();
+		}
+		
 //		@Override
 //		public boolean isEmpty() {
 //			return p.size() == 0;
@@ -233,11 +234,11 @@ public class BTree<T extends Identifiable> {
 			return p.size() * 2 < INDEX_NODE_BRANCH_FACTOR;
 		}
 		
-		public String toStringHelper(String prefix){
+		public String toStringHelper(String prefix, int index){
 			StringBuilder sb = new StringBuilder();
-			sb.append(prefix + "<INode("+prefix.length()+") least=" + this.lowerID +">\n");
-			for (Node<T> n : p){
-				sb.append(n.toStringHelper(prefix + " "));
+			sb.append(prefix + "<INode("+prefix.length()+")["+index+"] least=" + this.lowerID +">\n");
+			for (int i = 0; i < p.size() ; i++){
+				sb.append(p.get(i).toStringHelper(prefix + " ", i));
 			}
 			sb.append(prefix + "</INode("+prefix.length()+")>\n" );
 			return sb.toString();
@@ -250,11 +251,13 @@ public class BTree<T extends Identifiable> {
 		public DataNode(T firstData) {
 			d = new ArrayList<>(DATA_NODE_CAPACITY);
 			d.add(firstData);
+			this.lowerID = firstData.getIdentifier();
 		}
 
 		public DataNode(List<T> data) {
 			d = new ArrayList<>(DATA_NODE_CAPACITY);
 			d.addAll(data);
+			this.lowerID = d.get(0).getIdentifier();
 		}
 
 		@Override
@@ -306,9 +309,9 @@ public class BTree<T extends Identifiable> {
 		}
 
 		@Override
-		public String toStringHelper(String prefix) {
+		public String toStringHelper(String prefix, int index) {
 			StringBuilder sb = new StringBuilder();
-			sb.append(prefix + "<DNode("+prefix.length()+") ");
+			sb.append(prefix + "<DNode("+prefix.length()+")["+index+"]");
 			sb.append(d.toString());
 			sb.append(" />\n" );
 			return sb.toString();
