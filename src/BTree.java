@@ -1,13 +1,11 @@
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 public class BTree<T extends Identifiable> {
 	public static final int DATA_NODE_CAPACITY = 5;
 	public static final int INDEX_NODE_BRANCH_FACTOR = 5;
 
-	private Node<T> root;
+	private IndexNode<T> root;
 
 	/**
 	 * Construct an empty tree Empty BTree has a null root
@@ -52,13 +50,20 @@ public class BTree<T extends Identifiable> {
 		return root.fetch(identifier);
 	}
 
-	// public int remove(int identifier) {
-	// Node<?> ret = root.remove(identifier);
-	// if (ret == null) // no such element, remove fail
-	// return 0;
-	//// root = ret;
-	// return 1;
-	// }
+	public T remove(int identifier) {
+		if (root == null)
+			return null;
+		T ret = root.remove(identifier);
+		if (root.size() == 1) {
+			if (root.p.get(0) instanceof DataNode){
+				if (root.p.get(0).size() == 0)
+					root = null;// this Btress is empty now.
+			}else if (root.p.get(0) instanceof IndexNode){
+				root = (IndexNode<T>) root.p.get(0); // reduce the level of our BTree
+			}
+		}
+		return ret;
+	}
 
 	/**
 	 * add an element to the end of this tree
@@ -76,7 +81,7 @@ public class BTree<T extends Identifiable> {
 		if (ret != null) {
 			// this level is no longer enough, grow another level
 			IndexNode<T> newRoot = new IndexNode<T>(root);
-			newRoot.appendNode(ret);
+			newRoot.p.add(ret);
 			root = newRoot;
 		}
 	}
@@ -105,13 +110,11 @@ public class BTree<T extends Identifiable> {
 		 * @param identifier
 		 * @return
 		 */
-		// public Node<T> remove(int identifier);
+		public abstract T remove(int identifier);
 
-		// public abstract boolean isEmpty();
+		public abstract boolean mergeWith(Node<T> remove);
 
 		public abstract boolean notHalfFull();
-
-		// public abstract boolean isFull();
 
 		public abstract int size();
 
@@ -147,10 +150,6 @@ public class BTree<T extends Identifiable> {
 			p = new ArrayList<Node<T>>(INDEX_NODE_BRANCH_FACTOR);
 			p.addAll(list);
 			this.lowerID = p.get(0).lowerID;
-		}
-
-		public void appendNode(Node<T> node) {
-			p.add(node);
 		}
 
 		@Override
@@ -192,7 +191,6 @@ public class BTree<T extends Identifiable> {
 			}
 			int low = 0;
 			int up = p.size();
-			Node<T> ret;
 			while (up - low > 1) {
 				int mid = (low + up) / 2;
 				if (p.get(mid).compareToIdentifier(identifier) <= 0) {
@@ -204,34 +202,63 @@ public class BTree<T extends Identifiable> {
 			return p.get(low).fetch(identifier);
 		}
 
+		@Override
+		public T remove(int identifier) {
+			if (identifier < this.lowerID) {
+				return null;
+			}
+			int low = 0;
+			int up = p.size();
+			while (up - low > 1) {
+				int mid = (low + up) / 2;
+				if (p.get(mid).compareToIdentifier(identifier) <= 0) {
+					low = mid;
+				} else {
+					up = mid;
+				}
+			}
+			T ret = p.get(low).remove(identifier);
+			int newSize = p.get(low).size();
+			if (newSize * 2 < INDEX_NODE_BRANCH_FACTOR) {
+				if (this.size() == 1) {
+					// nothing can be done here.
+				} else if (low == 0) {
+					if (p.get(low).mergeWith(p.get(low + 1)))
+						p.remove(low + 1);
+				} else if (low == this.size() - 1) {
+					if (p.get(low - 1).mergeWith(p.get(low)))
+						p.remove(low);
+				} else {
+					if (p.get(low - 1).size() < p.get(low + 1).size()) {
+						if (p.get(low).mergeWith(p.get(low + 1)))
+							p.remove(low + 1);
+					} else {
+						if (p.get(low - 1).mergeWith(p.get(low)))
+							p.remove(low);
+					}
+				}
+			}
+			return ret;
+		}
+
 		/**
-		 * When a node is already full but a page split occurs in its children
-		 * node, this node needs to be split into two nodes.
 		 * 
-		 * This method splits the current node with an addition node inserted at
-		 * index. After it returns, the old node will contain the left split
-		 * node and the right split node will be returned.
-		 * 
-		 * @param index
-		 *            the index of the additional node
 		 * @param node
-		 *            the additional node
-		 * @return splited node
+		 * @return true when two nodes are merged and node become empty
+		 *         afterwards, false when they are only balanced
 		 */
-		// private Node<T> split() {
-		//
-		// }
-
-		// @Override
-		// public Node<T> remove(int identifier) {
-		// // TODO Auto-generated method stub
-		// return null;
-		// }
-
-		// @Override
-		// public boolean isFull() {
-		// return p.size() == INDEX_NODE_BRANCH_FACTOR;
-		// }
+		public boolean mergeWith(Node<T> node) {
+			IndexNode<T> indexNode = (IndexNode<T>) node;
+			this.p.addAll(indexNode.p);
+			indexNode.p.clear();
+			if (p.size() <= INDEX_NODE_BRANCH_FACTOR)
+				return true;
+			int div = (p.size() + 1) / 2;
+			indexNode.p.addAll(p.subList(div, p.size()));
+			p.subList(div, p.size()).clear();
+			indexNode.lowerID = indexNode.p.get(0).getIdentifier();
+			return false;
+		}
 
 		@Override
 		public int height() {
@@ -242,11 +269,6 @@ public class BTree<T extends Identifiable> {
 		public int size() {
 			return p.size();
 		}
-
-		// @Override
-		// public boolean isEmpty() {
-		// return p.size() == 0;
-		// }
 
 		@Override
 		public boolean notHalfFull() {
@@ -307,14 +329,6 @@ public class BTree<T extends Identifiable> {
 			return null;
 		}
 
-		
-		
-		// @Override
-		// public Node<T> remove(int identifier) {
-		// // TODO Auto-generated method stub
-		// return null;
-		// }
-
 		@Override
 		public T fetch(int identifier) {
 			if (identifier < this.lowerID) {
@@ -322,18 +336,50 @@ public class BTree<T extends Identifiable> {
 			}
 			int low = 0;
 			int up = d.size();
-			Node<T> ret;
 			while (up >= low) {
 				int mid = (low + up) / 2;
 				if (d.get(mid).compareToIdentifier(identifier) == 0) {
 					return d.get(0);
-				}else if (d.get(mid).compareToIdentifier(identifier) < 0){
+				} else if (d.get(mid).compareToIdentifier(identifier) < 0) {
 					low = mid + 1;
 				} else {
 					up = mid - 1;
 				}
 			}
 			return null;
+		}
+
+		@Override
+		public T remove(int identifier) {
+			if (identifier < this.lowerID) {
+				return null;
+			}
+			int low = 0;
+			int up = d.size();
+			while (up >= low) {
+				int mid = (low + up) / 2;
+				if (d.get(mid).compareToIdentifier(identifier) == 0) {
+					return d.remove(mid);
+				} else if (d.get(mid).compareToIdentifier(identifier) < 0) {
+					low = mid + 1;
+				} else {
+					up = mid - 1;
+				}
+			}
+			return null;
+		}
+
+		public boolean mergeWith(Node<T> node) {
+			DataNode<T> dataNode = (DataNode<T>) node;
+			this.d.addAll(dataNode.d);
+			dataNode.d.clear();
+			if (d.size() <= INDEX_NODE_BRANCH_FACTOR)
+				return true;
+			int div = (d.size() + 1) / 2;
+			dataNode.d.addAll(d.subList(div, d.size()));
+			d.subList(div, d.size()).clear();
+			dataNode.lowerID = dataNode.d.get(0).getIdentifier();
+			return false;
 		}
 
 		@Override
@@ -348,7 +394,7 @@ public class BTree<T extends Identifiable> {
 
 		@Override
 		public boolean notHalfFull() {
-			return false;
+			return d.size() * 2 < DATA_NODE_CAPACITY;
 		}
 
 		@Override
