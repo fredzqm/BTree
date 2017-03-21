@@ -5,7 +5,7 @@ public class BTree<T extends Identifiable> {
 	public static final int DATA_NODE_CAPACITY = 5;
 	public static final int INDEX_NODE_BRANCH_FACTOR = 5;
 
-	private IndexNode<T> root;
+	private IndexNode root;
 
 	/**
 	 * Construct an empty tree Empty BTree has a null root
@@ -19,7 +19,13 @@ public class BTree<T extends Identifiable> {
 	 */
 	@Override
 	public String toString() {
+		if (root == null)
+			return "<>";
 		return "Tree root: \n" + root.toStringHelper("", 0);
+	}
+
+	public boolean isEmpty() {
+		return root == null;
 	}
 
 	/**
@@ -55,11 +61,12 @@ public class BTree<T extends Identifiable> {
 			return null;
 		T ret = root.remove(identifier);
 		if (root.size() == 1) {
-			if (root.p.get(0) instanceof DataNode){
+			if (root.p.get(0).getClass() == DataNode.class) {
 				if (root.p.get(0).size() == 0)
 					root = null;// this Btress is empty now.
-			}else if (root.p.get(0) instanceof IndexNode){
-				root = (IndexNode<T>) root.p.get(0); // reduce the level of our BTree
+			} else if (root.p.get(0).getClass() == IndexNode.class) {
+				root = (IndexNode) root.p.get(0); // reduce the level of our
+														// BTree
 			}
 		}
 		return ret;
@@ -73,20 +80,20 @@ public class BTree<T extends Identifiable> {
 	 */
 	public void add(T data) {
 		if (root == null) {
-			Node<T> firstDataNode = new DataNode<T>(data);
-			root = new IndexNode<T>(firstDataNode);
+			Node firstDataNode = new DataNode(data);
+			root = new IndexNode(firstDataNode);
 			return;
 		}
-		Node<T> ret = root.add(data);
+		Node ret = root.add(data);
 		if (ret != null) {
 			// this level is no longer enough, grow another level
-			IndexNode<T> newRoot = new IndexNode<T>(root);
+			IndexNode newRoot = new IndexNode(root);
 			newRoot.p.add(ret);
 			root = newRoot;
 		}
 	}
 
-	private abstract class Node<T extends Identifiable> extends Identifiable {
+	private abstract class Node extends Identifiable {
 		protected int lowerID;
 
 		/**
@@ -95,7 +102,7 @@ public class BTree<T extends Identifiable> {
 		 * @return the split page not if there is a page split, null if no split
 		 *         happened
 		 */
-		public abstract Node<T> add(T data);
+		public abstract Node add(T data);
 
 		/**
 		 * fetch the data according to the identifier
@@ -112,7 +119,7 @@ public class BTree<T extends Identifiable> {
 		 */
 		public abstract T remove(int identifier);
 
-		public abstract boolean mergeWith(Node<T> remove);
+		public abstract boolean mergeWith(Node remove);
 
 		public abstract boolean notHalfFull();
 
@@ -132,31 +139,31 @@ public class BTree<T extends Identifiable> {
 
 	}
 
-	private class IndexNode<T extends Identifiable> extends Node<T> {
-		private ArrayList<Node<T>> p;
+	private class IndexNode extends Node {
+		private ArrayList<Node> p;
 
 		/**
 		 * create an index node given the smallest node.
 		 * 
 		 * @param smallestElement
 		 */
-		public IndexNode(Node<T> smallestElement) {
-			p = new ArrayList<Node<T>>(INDEX_NODE_BRANCH_FACTOR);
+		public IndexNode(Node smallestElement) {
+			p = new ArrayList<Node>(INDEX_NODE_BRANCH_FACTOR);
 			p.add(smallestElement);
 			this.lowerID = smallestElement.lowerID;
 		}
 
-		public IndexNode(List<Node<T>> list) {
-			p = new ArrayList<Node<T>>(INDEX_NODE_BRANCH_FACTOR);
+		public IndexNode(List<Node> list) {
+			p = new ArrayList<Node>(INDEX_NODE_BRANCH_FACTOR);
 			p.addAll(list);
 			this.lowerID = p.get(0).lowerID;
 		}
 
 		@Override
-		public Node<T> add(T data) {
+		public Node add(T data) {
 			int low = 0;
 			int up = p.size();
-			Node<T> ret;
+			Node ret;
 			if (data.compareToIdentifier(this.lowerID) < 0) {
 				this.lowerID = data.getIdentifier();
 				ret = p.get(0).add(data);
@@ -176,7 +183,7 @@ public class BTree<T extends Identifiable> {
 				p.add(low + 1, ret);
 				if (size() > INDEX_NODE_BRANCH_FACTOR) {
 					int div = (p.size() + 1) / 2;
-					Node<T> splited = new IndexNode<T>(p.subList(div, p.size()));
+					Node splited = new IndexNode(p.subList(div, p.size()));
 					p.subList(div, p.size()).clear();
 					return splited;
 				}
@@ -247,8 +254,8 @@ public class BTree<T extends Identifiable> {
 		 * @return true when two nodes are merged and node become empty
 		 *         afterwards, false when they are only balanced
 		 */
-		public boolean mergeWith(Node<T> node) {
-			IndexNode<T> indexNode = (IndexNode<T>) node;
+		public boolean mergeWith(Node node) {
+			IndexNode indexNode = (IndexNode) node;
 			this.p.addAll(indexNode.p);
 			indexNode.p.clear();
 			if (p.size() <= INDEX_NODE_BRANCH_FACTOR)
@@ -287,7 +294,7 @@ public class BTree<T extends Identifiable> {
 
 	}
 
-	private class DataNode<T extends Identifiable> extends Node<T> {
+	private class DataNode extends Node {
 		private ArrayList<T> d;
 
 		public DataNode(T firstData) {
@@ -303,7 +310,7 @@ public class BTree<T extends Identifiable> {
 		}
 
 		@Override
-		public Node<T> add(T data) {
+		public Node add(T data) {
 			int low = 0;
 			int up = d.size();
 			if (data.compareToIdentifier(this.lowerID) < 0) {
@@ -322,7 +329,7 @@ public class BTree<T extends Identifiable> {
 			}
 			if (size() > DATA_NODE_CAPACITY) {
 				int div = (d.size() + 1) / 2;
-				DataNode<T> splited = new DataNode<T>(d.subList(div, d.size()));
+				DataNode splited = new DataNode(d.subList(div, d.size()));
 				d.subList(div, d.size()).clear();
 				return splited;
 			}
@@ -369,8 +376,8 @@ public class BTree<T extends Identifiable> {
 			return null;
 		}
 
-		public boolean mergeWith(Node<T> node) {
-			DataNode<T> dataNode = (DataNode<T>) node;
+		public boolean mergeWith(Node node) {
+			DataNode dataNode = (DataNode) node;
 			this.d.addAll(dataNode.d);
 			dataNode.d.clear();
 			if (d.size() <= INDEX_NODE_BRANCH_FACTOR)

@@ -16,39 +16,38 @@ public class BTreeTest {
 
 	@Test
 	public void testInsert() {
-		BTree tree = new BTree<Int>();
-		for (int i = 0 ; i < 100; i++){
+		BTree<Int> tree = new BTree<Int>();
+		for (int i = 0; i < 100; i++) {
 			tree.add(new Int(i));
 		}
-		System.out.println(tree);
-		System.out.println(tree.fetch(3));
+		assertEquals(new Int(3), tree.fetch(3));
 	}
-	
+
 	@Test
 	public void testRandomInsert() {
-		BTree tree = new BTree<Int>();
-		for (int i = 0 ; i < 100; i++){
-			tree.add(new Int((int)(Math.random()*100)));
+		BTree<Int> tree = new BTree<Int>();
+		for (int i = 0; i < 100; i++) {
+			tree.add(new Int((int) (Math.random() * 100)));
 		}
 		System.out.println(tree);
 	}
-	
+
 	@Test
 	public void testRemove() {
-		BTree tree = new BTree<Int>();
-		for (int i = 0 ; i < 100; i++){
+		BTree<Int> tree = new BTree<Int>();
+		for (int i = 0; i < 100; i++) {
 			tree.add(new Int(i));
 		}
 		tree.remove(2);
-//		tree.remove(8);
+		// tree.remove(8);
 		System.out.println(tree);
-//		System.out.println(tree.fetch(3));
+		// System.out.println(tree.fetch(3));
 	}
 
 	@Test
 	public void testRemoveDecreaseLevel() {
-		BTree tree = new BTree<Int>();
-		for (int i = 0 ; i < 10; i++){
+		BTree<Int> tree = new BTree<Int>();
+		for (int i = 0; i < 10; i++) {
 			tree.add(new Int(i));
 		}
 		tree.remove(2);
@@ -61,23 +60,33 @@ public class BTreeTest {
 		tree.remove(6);
 		tree.remove(0);
 		tree.remove(7);
-		System.out.println(tree);
-//		System.out.println(tree.fetch(3));
+		assertTrue(tree.isEmpty());
+		// System.out.println(tree.fetch(3));
 	}
 }
 
-class Int extends Identifiable{
-	int i;
+class Int extends Identifiable {
+	private int i;
+
 	public Int(int j) {
 		i = j;
 	}
+
 	@Override
 	public int getIdentifier() {
 		return i;
 	}
-	
-	public String toString(){
-		return ""+i;
+
+	public String toString() {
+		return "" + i;
 	}
-	
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof Int) {
+			Int x = (Int) obj;
+			return x.i == this.i;
+		}
+		return false;
+	}
 }
